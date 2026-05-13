@@ -1,5 +1,5 @@
 #define _WIN32_WINNT 0x0A00
-#define WINVER       0x0A00
+#define WINVER 0x0A00
 #define WIN32_LEAN_AND_MEAN
 
 #include <winsock2.h>
@@ -20,7 +20,16 @@
 
 namespace fs = std::filesystem;
 
-std::vector<std::string> getLocalIPs() {
+enum class UninstallResult
+{
+    Success,
+    NotInstalled,
+    AccessDenied,
+    Failed
+};
+
+std::vector<std::string> getLocalIPs()
+{
     std::vector<std::string> ips;
     ULONG bufLen = 15000;
     std::vector<BYTE> buf(bufLen);
@@ -30,7 +39,8 @@ std::vector<std::string> getLocalIPs() {
         AF_INET,
         GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER,
         nullptr, addrs, &bufLen);
-    if (ret == ERROR_BUFFER_OVERFLOW) {
+    if (ret == ERROR_BUFFER_OVERFLOW)
+    {
         buf.resize(bufLen);
         addrs = reinterpret_cast<PIP_ADAPTER_ADDRESSES>(buf.data());
         ret = GetAdaptersAddresses(
@@ -38,13 +48,18 @@ std::vector<std::string> getLocalIPs() {
             GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER,
             nullptr, addrs, &bufLen);
     }
-    if (ret != NO_ERROR) return ips;
+    if (ret != NO_ERROR)
+        return ips;
 
-    for (auto* a = addrs; a; a = a->Next) {
-        if (a->IfType == IF_TYPE_SOFTWARE_LOOPBACK) continue;
-        if (a->OperStatus != IfOperStatusUp) continue;
-        for (auto* ua = a->FirstUnicastAddress; ua; ua = ua->Next) {
-            auto* sa = reinterpret_cast<sockaddr_in*>(ua->Address.lpSockaddr);
+    for (auto *a = addrs; a; a = a->Next)
+    {
+        if (a->IfType == IF_TYPE_SOFTWARE_LOOPBACK)
+            continue;
+        if (a->OperStatus != IfOperStatusUp)
+            continue;
+        for (auto *ua = a->FirstUnicastAddress; ua; ua = ua->Next)
+        {
+            auto *sa = reinterpret_cast<sockaddr_in *>(ua->Address.lpSockaddr);
             char ipStr[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, &sa->sin_addr, ipStr, sizeof(ipStr));
             ips.emplace_back(ipStr);
@@ -53,59 +68,94 @@ std::vector<std::string> getLocalIPs() {
     return ips;
 }
 
-std::string getMime(const std::string& ext) {
+std::string getMime(const std::string &ext)
+{
     static const std::map<std::string, std::string> mime = {
-        {".html", "text/html"}, {".htm", "text/html"},
-        {".xml",  "text/xml"}, {".xhtml","application/xhtml+xml"},
-        {".css",  "text/css"}, {".js",  "application/javascript"},
-        {".mjs",  "application/javascript"}, {".json","application/json"},
-        {".txt",  "text/plain"}, {".md",  "text/plain"},
-        {".csv",  "text/plain"}, {".log", "text/plain"},
-        {".yaml", "text/plain"}, {".yml", "text/plain"},
-        {".toml", "text/plain"}, {".ini", "text/plain"},
-        {".conf", "text/plain"}, {".sh",  "text/plain"},
-        {".bat",  "text/plain"}, {".py",  "text/plain"},
-        {".cpp",  "text/plain"}, {".c",   "text/plain"},
-        {".h",    "text/plain"}, {".java","text/plain"},
-        {".rs",   "text/plain"}, {".go",  "text/plain"},
-        {".ts",   "text/plain"},
-        {".png",  "image/png"}, {".jpg", "image/jpeg"},
-        {".jpeg", "image/jpeg"}, {".gif", "image/gif"},
-        {".svg",  "image/svg+xml"}, {".ico","image/x-icon"},
-        {".webp", "image/webp"}, {".bmp", "image/bmp"},
-        {".tiff", "image/tiff"}, {".avif","image/avif"},
-        {".mp4",  "video/mp4"}, {".webm","video/webm"},
-        {".ogg",  "video/ogg"}, {".mp3", "audio/mpeg"},
-        {".wav",  "audio/wav"}, {".flac","audio/flac"},
-        {".aac",  "audio/aac"}, {".pdf", "application/pdf"},
+        {".html", "text/html"},
+        {".htm", "text/html"},
+        {".xml", "text/xml"},
+        {".xhtml", "application/xhtml+xml"},
+        {".css", "text/css"},
+        {".js", "application/javascript"},
+        {".mjs", "application/javascript"},
+        {".json", "application/json"},
+        {".txt", "text/plain"},
+        {".md", "text/plain"},
+        {".csv", "text/plain"},
+        {".log", "text/plain"},
+        {".yaml", "text/plain"},
+        {".yml", "text/plain"},
+        {".toml", "text/plain"},
+        {".ini", "text/plain"},
+        {".conf", "text/plain"},
+        {".sh", "text/plain"},
+        {".bat", "text/plain"},
+        {".py", "text/plain"},
+        {".cpp", "text/plain"},
+        {".c", "text/plain"},
+        {".h", "text/plain"},
+        {".java", "text/plain"},
+        {".rs", "text/plain"},
+        {".go", "text/plain"},
+        {".ts", "text/plain"},
+        {".png", "image/png"},
+        {".jpg", "image/jpeg"},
+        {".jpeg", "image/jpeg"},
+        {".gif", "image/gif"},
+        {".svg", "image/svg+xml"},
+        {".ico", "image/x-icon"},
+        {".webp", "image/webp"},
+        {".bmp", "image/bmp"},
+        {".tiff", "image/tiff"},
+        {".avif", "image/avif"},
+        {".mp4", "video/mp4"},
+        {".webm", "video/webm"},
+        {".ogg", "video/ogg"},
+        {".mp3", "audio/mpeg"},
+        {".wav", "audio/wav"},
+        {".flac", "audio/flac"},
+        {".aac", "audio/aac"},
+        {".pdf", "application/pdf"},
         {".wasm", "application/wasm"},
     };
     auto it = mime.find(ext);
     return it != mime.end() ? it->second : "application/octet-stream";
 }
 
-std::string urlDecode(const std::string& s) {
+std::string urlDecode(const std::string &s)
+{
     std::string result;
-    for (size_t i = 0; i < s.size(); ++i) {
-        if (s[i] == '%' && i + 2 < s.size()) {
+    for (size_t i = 0; i < s.size(); ++i)
+    {
+        if (s[i] == '%' && i + 2 < s.size())
+        {
             int v = std::stoi(s.substr(i + 1, 2), nullptr, 16);
             result += (char)v;
             i += 2;
-        } else if (s[i] == '+') {
+        }
+        else if (s[i] == '+')
+        {
             result += ' ';
-        } else {
+        }
+        else
+        {
             result += s[i];
         }
     }
     return result;
 }
 
-std::string urlEncode(const std::string& s) {
+std::string urlEncode(const std::string &s)
+{
     std::string result;
-    for (unsigned char c : s) {
-        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+    for (unsigned char c : s)
+    {
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
+        {
             result += c;
-        } else {
+        }
+        else
+        {
             char buf[4];
             snprintf(buf, sizeof(buf), "%%%02X", c);
             result += buf;
@@ -114,90 +164,157 @@ std::string urlEncode(const std::string& s) {
     return result;
 }
 
-std::wstring utf8ToWide(const std::string& s) {
-    if (s.empty()) return {};
+std::wstring utf8ToWide(const std::string &s)
+{
+    if (s.empty())
+        return {};
     int len = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
     std::wstring ws(len - 1, 0);
     MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, ws.data(), len);
     return ws;
 }
 
-std::string wideToUtf8(const wchar_t* ws) {
+std::string wideToUtf8(const wchar_t *ws)
+{
     int len = WideCharToMultiByte(CP_UTF8, 0, ws, -1, nullptr, 0, nullptr, nullptr);
     std::string s(len - 1, 0);
     WideCharToMultiByte(CP_UTF8, 0, ws, -1, s.data(), len, nullptr, nullptr);
     return s;
 }
 
-bool installMenu() {
+bool installMenu()
+{
     wchar_t exePathW[MAX_PATH];
     GetModuleFileNameW(nullptr, exePathW, MAX_PATH);
     std::wstring wexe = exePathW;
 
-    auto write = [](const std::string& path, const std::string& name, const std::wstring& val) {
+    auto write = [](const std::string &path, const std::string &name, const std::wstring &val)
+    {
         HKEY hKey;
         if (RegCreateKeyExA(HKEY_CLASSES_ROOT, path.c_str(), 0, nullptr,
-            REG_OPTION_NON_VOLATILE, KEY_WRITE, nullptr, &hKey, nullptr) != ERROR_SUCCESS)
+                            REG_OPTION_NON_VOLATILE, KEY_WRITE, nullptr, &hKey, nullptr) != ERROR_SUCCESS)
             return false;
         bool ok = RegSetValueExW(hKey,
-            name.empty() ? nullptr : std::wstring(name.begin(), name.end()).c_str(),
-            0, REG_SZ,
-            (BYTE*)val.c_str(),
-            (DWORD)((val.size() + 1) * sizeof(wchar_t))) == ERROR_SUCCESS;
+                                 name.empty() ? nullptr : std::wstring(name.begin(), name.end()).c_str(),
+                                 0, REG_SZ,
+                                 (BYTE *)val.c_str(),
+                                 (DWORD)((val.size() + 1) * sizeof(wchar_t))) == ERROR_SUCCESS;
         RegCloseKey(hKey);
         return ok;
     };
 
-    std::wstring cmd   = L"\"" + wexe + L"\" \"%1\"";
+    std::wstring cmd = L"\"" + wexe + L"\" \"%1\"";
     std::wstring cmdBg = L"\"" + wexe + L"\" \"%V\"";
-    std::wstring icon  = wexe + L",0";
+    std::wstring icon = wexe + L",0";
 
     bool ok = true;
-    ok &= write("Directory\\shell\\DirHTTP",          "",       L"开启 HTTP 服务");
-    ok &= write("Directory\\shell\\DirHTTP",          "Icon",   icon);
-    ok &= write("Directory\\shell\\DirHTTP\\command", "",       cmd);
-    ok &= write("Directory\\Background\\shell\\DirHTTP",          "",       L"开启 HTTP 服务");
-    ok &= write("Directory\\Background\\shell\\DirHTTP",          "Icon",   icon);
-    ok &= write("Directory\\Background\\shell\\DirHTTP\\command", "",       cmdBg);
+    ok &= write("Directory\\shell\\DirHTTP", "", L"开启 HTTP 服务");
+    ok &= write("Directory\\shell\\DirHTTP", "Icon", icon);
+    ok &= write("Directory\\shell\\DirHTTP\\command", "", cmd);
+    ok &= write("Directory\\Background\\shell\\DirHTTP", "", L"开启 HTTP 服务");
+    ok &= write("Directory\\Background\\shell\\DirHTTP", "Icon", icon);
+    ok &= write("Directory\\Background\\shell\\DirHTTP\\command", "", cmdBg);
     return ok;
 }
 
-bool uninstallMenu() {
-    bool ok = true;
-    ok &= (RegDeleteTreeA(HKEY_CLASSES_ROOT, "Directory\\shell\\DirHTTP") == ERROR_SUCCESS);
-    ok &= (RegDeleteTreeA(HKEY_CLASSES_ROOT, "Directory\\Background\\shell\\DirHTTP") == ERROR_SUCCESS);
-    return ok;
+UninstallResult uninstallMenu()
+{
+    auto removeKey = [](const char *subKey) -> LONG
+    {
+        return RegDeleteTreeA(HKEY_CLASSES_ROOT, subKey);
+    };
+
+    LONG ret1 = removeKey("Directory\\shell\\DirHTTP");
+    LONG ret2 = removeKey("Directory\\Background\\shell\\DirHTTP");
+
+    if (ret1 == ERROR_FILE_NOT_FOUND &&
+        ret2 == ERROR_FILE_NOT_FOUND)
+    {
+        return UninstallResult::NotInstalled;
+    }
+
+    if (ret1 == ERROR_ACCESS_DENIED ||
+        ret2 == ERROR_ACCESS_DENIED)
+    {
+        return UninstallResult::AccessDenied;
+    }
+
+    auto isOk = [](LONG ret)
+    {
+        return ret == ERROR_SUCCESS ||
+               ret == ERROR_FILE_NOT_FOUND;
+    };
+
+    if (isOk(ret1) && isOk(ret2))
+    {
+        return UninstallResult::Success;
+    }
+
+    return UninstallResult::Failed;
 }
 
-int main() {
+int main()
+{
     SetConsoleOutputCP(65001);
     SetConsoleCP(65001);
 
     int wargc;
-    wchar_t** wargv = CommandLineToArgvW(GetCommandLineW(), &wargc);
+    wchar_t **wargv = CommandLineToArgvW(GetCommandLineW(), &wargc);
 
-    auto arg = [&](int i) -> std::string {
-        if (i >= wargc) return "";
+    auto arg = [&](int i) -> std::string
+    {
+        if (i >= wargc)
+            return "";
         return wideToUtf8(wargv[i]);
     };
 
-    if (wargc == 2 && arg(1) == "--install") {
-        if (installMenu()) std::cout << "右键菜单已安装！\n";
-        else { std::cerr << "安装失败，请以管理员身份运行\n"; LocalFree(wargv); return 1; }
+    if (wargc == 2 && arg(1) == "--install")
+    {
+        if (installMenu())
+            std::cout << "右键菜单已安装！\n";
+        else
+        {
+            std::cerr << "安装失败，请以管理员身份运行\n";
+            LocalFree(wargv);
+            return 1;
+        }
         system("pause >nul");
         LocalFree(wargv);
         return 0;
     }
 
-    if (wargc == 2 && arg(1) == "--uninstall") {
-        if (uninstallMenu()) std::cout << "右键菜单已卸载！\n";
-        else { std::cerr << "卸载失败，请以管理员身份运行\n"; LocalFree(wargv); return 1; }
+    if (wargc == 2 && arg(1) == "--uninstall")
+    {
+        UninstallResult result = uninstallMenu();
+
+        switch (result)
+        {
+        case UninstallResult::Success:
+            std::cout << "右键菜单已卸载！\n";
+            break;
+
+        case UninstallResult::NotInstalled:
+            std::cout << "右键菜单未安装。\n";
+            break;
+
+        case UninstallResult::AccessDenied:
+            std::cerr << "卸载失败，请以管理员身份运行\n";
+            LocalFree(wargv);
+            return 1;
+
+        default:
+            std::cerr << "卸载失败。\n";
+            LocalFree(wargv);
+            return 1;
+        }
+
         system("pause >nul");
         LocalFree(wargv);
         return 0;
     }
 
-    if (wargc != 2) {
+    if (wargc != 2)
+    {
         std::cerr << "Usage:\n";
         std::cerr << "  DirHTTP.exe <directory>    # 启动服务\n";
         std::cerr << "  DirHTTP.exe --install      # 注册右键菜单（需管理员）\n";
@@ -209,14 +326,16 @@ int main() {
     fs::path rootDir = fs::absolute(fs::path(wargv[1]));
     LocalFree(wargv);
 
-    if (!fs::exists(rootDir) || !fs::is_directory(rootDir)) {
+    if (!fs::exists(rootDir) || !fs::is_directory(rootDir))
+    {
         std::cerr << "Error: Not a directory\n";
         return 1;
     }
 
     httplib::Server svr;
 
-    svr.Get("/.*", [&](const httplib::Request& req, httplib::Response& res) {
+    svr.Get("/.*", [&](const httplib::Request &req, httplib::Response &res)
+            {
         std::string urlPath = urlDecode(req.path);
 
         fs::path target = rootDir;
@@ -310,11 +429,11 @@ int main() {
 
         std::string ext = target.extension().string();
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-        res.set_content(content, getMime(ext));
-    });
+        res.set_content(content, getMime(ext)); });
 
     int port = svr.bind_to_any_port("0.0.0.0");
-    if (port == -1) {
+    if (port == -1)
+    {
         std::cerr << "Error: No available port\n";
         return 1;
     }
@@ -327,23 +446,27 @@ int main() {
     std::cout << "Listening on port " << port << "\n\n";
 
     auto ips = getLocalIPs();
-    if (ips.empty()) {
+    if (ips.empty())
+    {
         std::cout << "  http://localhost:" << portStr << "\n";
-    } else {
-        for (const auto& ip : ips) {
+    }
+    else
+    {
+        for (const auto &ip : ips)
+        {
             std::cout << "  http://" << ip << ":" << portStr << "\n";
         }
     }
 
     std::cout << "\nPress Enter to stop...\n";
 
-    std::thread server_thread([&svr]() {
-        svr.listen_after_bind();
-    });
+    std::thread server_thread([&svr]()
+                              { svr.listen_after_bind(); });
 
     std::cin.get();
     svr.stop();
-    if (server_thread.joinable()) server_thread.join();
+    if (server_thread.joinable())
+        server_thread.join();
 
     return 0;
 }
